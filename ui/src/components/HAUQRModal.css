@@ -1,0 +1,134 @@
+/* HAUQRModal — centered dialog with QR code image */
+
+.hauqr-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 11, 23, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: var(--space-4);
+  animation: hauqr-fade-in 0.25s ease-out;
+}
+
+.hauqr-dialog {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 30px rgba(32, 227, 255, 0.2), var(--shadow-md);
+  max-width: 760px;
+  width: 100%;
+  max-height: calc(100vh - 48px);
+  outline: none;
+  animation: hauqr-pop-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+}
+
+/* X close button */
+.hauqr-close-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.hauqr-close-x:hover,
+.hauqr-close-x:focus-visible {
+  background: rgba(32, 227, 255, 0.1);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Content */
+.hauqr-content {
+  position: relative;
+  z-index: 2;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.hauqr-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 20px rgba(32, 227, 255, 0.5);
+  margin: 0;
+}
+
+.hauqr-image-wrap {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.hauqr-image {
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  display: block;
+}
+
+/* Animations */
+@keyframes hauqr-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes hauqr-pop-in {
+  from { opacity: 0; transform: scale(0.85) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hauqr-backdrop { animation: none; }
+  .hauqr-dialog { animation: none; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hauqr-dialog {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+  }
+  .hauqr-content {
+    padding: var(--space-4) var(--space-3) var(--space-3);
+  }
+  .hauqr-title {
+    font-size: 22px;
+  }
+  .hauqr-image-wrap {
+    padding: var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  .hauqr-dialog {
+    max-width: calc(100vw - 16px);
+  }
+  .hauqr-title {
+    font-size: 20px;
+  }
+}

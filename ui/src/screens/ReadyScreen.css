@@ -1,0 +1,185 @@
+:root {
+  --ready-bg: var(--bg-raised, rgba(20, 30, 48, 0.9));
+  --ready-border: var(--border-subtle, rgba(255, 255, 255, 0.1));
+  --ready-text: var(--text-primary, #ffffff);
+  --ready-sub: var(--text-secondary, #a0aec8);
+  --ready-accent: var(--accent-cyan, #20e3ff);
+}
+
+.ready-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-4);
+}
+
+.ready-card {
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  background: var(--ready-bg);
+  border: 1px solid var(--ready-border);
+  animation: ready-enter 0.35s ease-out;
+}
+
+.ready-title {
+  font-size: clamp(28px, 3vw, 42px);
+  color: var(--ready-text);
+  margin-bottom: var(--space-3);
+}
+
+.ready-subtitle {
+  color: var(--ready-sub);
+  margin-bottom: var(--space-5);
+}
+
+.ready-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  justify-content: center;
+}
+
+.ready-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--ready-border);
+  border-top-color: var(--ready-accent);
+  border-radius: 50%;
+  animation: ready-spin 0.8s linear infinite;
+}
+
+.ready-starting-text {
+  color: var(--ready-sub);
+  font-size: 14px;
+}
+
+/* ── Countdown display ────────────────────────────────── */
+
+.ready-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin: var(--space-4) 0;
+}
+
+.ready-countdown-number {
+  font-size: clamp(72px, 12vw, 120px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ready-accent);
+  text-shadow:
+    0 0 20px rgba(32, 227, 255, 0.5),
+    0 0 40px rgba(32, 227, 255, 0.3);
+  animation: ready-countdown-pop 0.35s ease-out;
+}
+
+.ready-countdown-go {
+  font-size: clamp(64px, 10vw, 100px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 4px;
+  color: var(--ready-accent);
+  text-shadow:
+    0 0 30px rgba(32, 227, 255, 0.6),
+    0 0 60px rgba(32, 227, 255, 0.4);
+  animation: ready-go-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ready-go {
+  animation: ready-go-glow 0.6s ease-out;
+}
+
+@keyframes ready-countdown-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ready-go-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes ready-go-glow {
+  from {
+    filter: brightness(0.6);
+  }
+  to {
+    filter: brightness(1);
+  }
+}
+
+/* ── Error state ──────────────────────────────────────── */
+
+.ready-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ready-error-text {
+  color: var(--state-error);
+  font-size: 14px;
+  max-width: 320px;
+}
+
+.ready-error-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.ready-mode {
+  color: var(--ready-sub);
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: var(--space-4);
+}
+
+@keyframes ready-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ready-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ready-card,
+  .ready-spinner,
+  .ready-countdown-number,
+  .ready-countdown-go,
+  .ready-go {
+    animation: none !important;
+  }
+  .ready-countdown-number,
+  .ready-countdown-go {
+    text-shadow: none;
+  }
+}

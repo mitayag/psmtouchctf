@@ -1,0 +1,40 @@
+services:
+  touchctf-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: touchctf-api
+    environment:
+      SQLITE_PATH: /data/touchctf.db
+    volumes:
+      - touchctf-data:/data
+    ports:
+      - "8000:8000"
+    networks:
+      - touchctf-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  touchctf-ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: touchctf-ui
+    depends_on:
+      touchctf-api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    networks:
+      - touchctf-net
+
+volumes:
+  touchctf-data:
+
+networks:
+  touchctf-net:
+    driver: bridge

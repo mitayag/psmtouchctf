@@ -1,0 +1,125 @@
+:root {
+  --sa-bg: var(--bg-raised, rgba(20, 30, 48, 0.85));
+  --sa-border: var(--border-default, rgba(255, 255, 255, 0.12));
+  --sa-text: var(--text-secondary, #a0aec8);
+  --sa-text-strong: var(--text-primary, #ffffff);
+  --sa-accent: var(--accent-cyan, #20e3ff);
+  --sa-error: var(--state-error, #ff5a7a);
+  --sa-success: var(--state-success, #5affa8);
+}
+
+.sound-activator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: var(--sa-bg);
+  border: 1px solid var(--sa-border);
+  border-radius: var(--radius-md, 12px);
+  backdrop-filter: blur(8px);
+}
+
+/* Compact variant for narrow columns (e.g. right column beneath wheel) */
+.sound-activator.compact {
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+}
+
+.sound-activator.compact .sound-activator-label {
+  font-size: 12px;
+}
+
+.sound-activator.compact .sound-activator-label strong {
+  font-size: 13px;
+}
+
+.sound-activator.compact .sound-activator-actions {
+  gap: var(--space-1, 4px);
+  width: 100%;
+}
+
+.sound-activator.compact .sound-activator-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.sound-activator.compact .sound-activator-volume input[type='range'] {
+  width: 72px;
+}
+
+.sound-activator-label {
+  font-size: 14px;
+  color: var(--sa-text);
+  line-height: 1.3;
+}
+
+.sound-activator-label strong {
+  color: var(--sa-text-strong);
+  display: block;
+  font-weight: 600;
+}
+
+.sound-activator-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-left: auto;
+}
+
+.sound-activator-btn {
+  appearance: none;
+  border: 1px solid var(--sa-accent);
+  background: transparent;
+  color: var(--sa-accent);
+  border-radius: var(--radius-sm, 8px);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.08s ease;
+  white-space: nowrap;
+}
+
+.sound-activator-btn:hover {
+  background: rgba(32, 227, 255, 0.12);
+}
+
+.sound-activator-btn:active {
+  transform: scale(0.97);
+}
+
+.sound-activator-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sound-activator-test {
+  border-color: var(--sa-border);
+  color: var(--sa-text-strong);
+}
+
+.sound-activator-test:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sound-activator-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sound-activator-volume input[type='range'] {
+  width: 96px;
+  accent-color: var(--sa-accent);
+}
+
+.sound-activator-status {
+  font-size: 12px;
+  color: var(--sa-error);
+  max-width: 240px;
+}
+
+.sound-activator-status.on {
+  color: var(--sa-success);
+}

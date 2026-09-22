@@ -1,0 +1,83 @@
+services:
+  migrate:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: sqlite:///data/touchctf.db
+      APP_SECRET_FILE: /run/secrets/app_secret
+    secrets:
+      - app_secret
+    volumes:
+      - sqlite_data:/data
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: sqlite:///data/touchctf.db
+      APP_SECRET_FILE: /run/secrets/app_secret
+      APP_ENV: production
+      MEDIA_DIR: /app/media
+      API_WORKERS: 1
+    secrets:
+      - app_secret
+    volumes:
+      - sqlite_data:/data
+      - media_data:/app/media
+    networks:
+      - backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  edge:
+    image: nginx:1.27-alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./edge/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ui/dist:/usr/share/nginx/html:ro
+    networks:
+      - backend
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sqlite_data:
+  media_data:
+
+networks:
+  backend:
+
+secrets:
+  app_secret:
+    file: ./secrets/app_secret.txt

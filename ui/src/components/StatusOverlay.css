@@ -1,0 +1,62 @@
+.status-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 100;
+  background: rgba(7, 11, 23, 0.92);
+  backdrop-filter: blur(4px);
+  padding: 2rem;
+  text-align: center;
+}
+
+.status-overlay__spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid rgba(32, 227, 255, 0.25);
+  border-top-color: var(--color-primary, #20e3ff);
+  border-radius: 50%;
+  animation: status-spin 1s linear infinite;
+}
+
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-overlay__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text, #ffffff);
+}
+
+.status-overlay__message {
+  font-size: 1rem;
+  color: var(--color-text-muted, #a3b3cc);
+  max-width: 32rem;
+}
+
+.status-overlay__retry {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-primary, #20e3ff);
+  background: transparent;
+  color: var(--color-primary, #20e3ff);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.status-overlay__retry:hover {
+  background: rgba(32, 227, 255, 0.1);
+}
+
+.status-overlay__retry:focus-visible {
+  outline: 2px solid var(--color-primary, #20e3ff);
+  outline-offset: 2px;
+}

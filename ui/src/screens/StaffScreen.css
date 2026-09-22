@@ -1,0 +1,309 @@
+.staff-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.staff-login-card,
+.staff-card {
+  max-width: 720px;
+  width: 100%;
+}
+
+.staff-login-title,
+.staff-card-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.staff-nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.staff-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.staff-back-btn {
+  width: 100%;
+  padding: var(--space-3);
+  background: transparent;
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  color: var(--accent-cyan);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 56px;
+}
+
+.staff-back-btn:hover {
+  background: rgba(32, 227, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(32, 227, 255, 0.15);
+}
+
+.staff-back-btn:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.staff-back-btn:active {
+  background: rgba(32, 227, 255, 0.15);
+}
+
+.staff-label {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.staff-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.staff-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.staff-input-code {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.staff-lookup-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.staff-error {
+  color: var(--state-error);
+  background: rgba(255, 70, 70, 0.1);
+  border: 1px solid rgba(255, 70, 70, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.staff-claim-result {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.staff-claim-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.staff-claim-prize-icon {
+  font-size: 40px;
+}
+
+.staff-claim-prize-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text-primary);
+}
+
+.staff-claim-player {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.staff-claim-code {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-align: center;
+  padding: var(--space-4);
+  background: var(--bg-raised);
+  border: 2px dashed var(--accent-cyan);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  letter-spacing: 2px;
+}
+
+.staff-claim-status {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.staff-status-awarded {
+  color: var(--accent-cyan);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.staff-status-redeemed {
+  color: var(--state-success);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.staff-status-voided {
+  color: var(--state-error);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.staff-claim-date {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.staff-redeem-result {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-align: center;
+}
+
+.staff-redeem-result.success {
+  color: var(--state-success);
+  background: rgba(83, 245, 173, 0.1);
+  border: 1px solid rgba(83, 245, 173, 0.3);
+}
+
+.staff-redeem-result.error {
+  color: var(--state-error);
+  background: rgba(255, 70, 70, 0.1);
+  border: 1px solid rgba(255, 70, 70, 0.3);
+}
+
+.staff-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.staff-outstanding-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.staff-outstanding-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.staff-outstanding-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.staff-outstanding-prize {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.staff-outstanding-player {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.staff-outstanding-code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: 1px;
+}
+
+.staff-prizes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.staff-prizes-table th {
+  text-align: left;
+  padding: var(--space-3);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.staff-prizes-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.staff-prizes-table td:first-child {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.staff-inventory-status {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.staff-inventory-status.in-stock {
+  color: var(--state-success);
+  background: rgba(83, 245, 173, 0.1);
+}
+
+.staff-inventory-status.out-of-stock {
+  color: var(--state-error);
+  background: rgba(255, 70, 70, 0.1);
+}
+
+@media (max-width: 768px) {
+  .staff-nav {
+    flex-wrap: wrap;
+  }
+  .staff-claim-code {
+    font-size: 24px;
+  }
+  .staff-prizes-table {
+    font-size: 12px;
+  }
+}

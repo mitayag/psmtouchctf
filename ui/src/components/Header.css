@@ -1,0 +1,189 @@
+.app-header {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 var(--space-4);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.app-header-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto minmax(200px, auto);
+  align-items: center;
+  flex: 1 1 0;
+  min-height: 0;
+  gap: var(--space-4);
+}
+
+.app-header--with-stats .app-header-row {
+  flex: 0 0 auto;
+}
+
+.app-header-stats-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* ── Brand group: circular logo + wordmark ──────────────────── */
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.app-header-hau-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.app-header-titles {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.app-header-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.app-header-tagline {
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ── Center ─────────────────────────────────────────────────── */
+.app-header-center {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.app-header-title {
+  font-size: 32px;
+  color: var(--text-primary);
+}
+
+.app-header-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+/* ── Right controls ─────────────────────────────────────────── */
+.app-header-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1440px) {
+  .app-header {
+    padding: 0 var(--space-3);
+  }
+  .app-header-stats-row {
+    gap: var(--space-3);
+    padding: 4px 0;
+  }
+}
+
+@media (max-width: 1280px) {
+  .app-header {
+    padding: 0 var(--space-3);
+  }
+  .app-header-row {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: var(--space-3);
+  }
+  .app-header-hau-logo {
+    width: 52px;
+    height: 52px;
+  }
+  .app-header-name {
+    font-size: 22px;
+  }
+  .app-header-tagline {
+    font-size: 11px;
+  }
+  .app-header-title {
+    font-size: 22px;
+  }
+  .app-header-subtitle {
+    font-size: 11px;
+  }
+  .app-header-stats-row {
+    gap: var(--space-3);
+    padding: 2px 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-header-row {
+    grid-template-columns: auto 1fr auto;
+  }
+  .app-header-hau-logo {
+    width: 44px;
+    height: 44px;
+  }
+  .app-header-tagline,
+  .app-header-subtitle {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: var(--space-2) var(--space-3);
+  }
+  .app-header-hau-logo {
+    width: 40px;
+    height: 40px;
+  }
+  .app-header-name {
+    font-size: 18px;
+  }
+  .app-header-brand {
+    gap: var(--space-2);
+  }
+  .app-header-stats-row {
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header-hau-logo {
+    width: 36px;
+    height: 36px;
+  }
+  .app-header-name {
+    font-size: 16px;
+  }
+  .app-header-title {
+    font-size: 18px;
+  }
+}

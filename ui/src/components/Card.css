@@ -1,0 +1,45 @@
+.ctf-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctf-card-raised {
+  background: var(--bg-raised);
+}
+
+.ctf-card-glow {
+  border-color: var(--accent-cyan);
+  box-shadow: var(--glow-cyan), var(--shadow-md);
+}
+
+.ctf-card-padding-sm {
+  padding: var(--space-3);
+}
+
+.ctf-card-padding-md {
+  padding: var(--space-4);
+}
+
+.ctf-card-padding-lg {
+  padding: var(--space-5);
+}
+
+.ctf-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  opacity: 0.6;
+}
+
+.ctf-card-glow::before {
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-magenta), transparent);
+  opacity: 1;
+}

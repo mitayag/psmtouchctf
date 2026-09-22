@@ -1,0 +1,59 @@
+# ── Environment & secrets ──────────────────────────────────
+.env
+.env.prod
+.env.local
+secrets/
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+
+# ── Node ───────────────────────────────────────────────────
+node_modules/
+ui/node_modules/
+
+# ── Build output ───────────────────────────────────────────
+dist/
+ui/dist/
+api/dist/
+
+# ── Database files ─────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ───────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS / editor ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ── Docker volumes (runtime data) ─────────────────────────
+docker-compose.override.yml
+
+# ── Backup files ───────────────────────────────────────────
+backups/
+*.sql.gz
+*.dump
+
+# ── Screenshots (not redistributable) ─────────────────────
+screenshots/
+
+# ── Development-only tools ────────────────────────────────
+ui/capture-*.mjs
+ui/console-check.cjs
+ui/screenshot.cjs
+ui/verify-*.mjs

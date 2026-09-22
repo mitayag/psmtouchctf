@@ -1,0 +1,204 @@
+/* WheelResultModal — centered dialog with dimmed backdrop */
+
+.wrm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 11, 23, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: var(--space-4);
+  animation: wrm-fade-in 0.25s ease-out;
+}
+
+.wrm-dialog {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 30px rgba(32, 227, 255, 0.2), var(--shadow-md);
+  max-width: 440px;
+  width: 100%;
+  outline: none;
+  animation: wrm-pop-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+}
+
+/* X close button */
+.wrm-close-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.wrm-close-x:hover,
+.wrm-close-x:focus-visible {
+  background: rgba(32, 227, 255, 0.1);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Confetti */
+.wrm-confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.wrm-confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--c1, #20E3FF);
+  animation: wrm-confetti-fall 2.5s ease-in forwards;
+}
+.wrm-confetti-piece:nth-child(odd) {
+  background: var(--c2, #FF4FD8);
+  width: 8px;
+  height: 14px;
+  border-radius: 1px;
+}
+
+/* Content */
+.wrm-content {
+  position: relative;
+  z-index: 2;
+  padding: var(--space-6) var(--space-5) var(--space-4);
+  text-align: center;
+}
+
+.wrm-icon {
+  font-size: 64px;
+  line-height: 1;
+  margin-bottom: var(--space-3);
+  animation: wrm-icon-bounce 0.5s ease 0.15s both;
+}
+
+.wrm-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 var(--space-2);
+}
+.wrm-title--live {
+  color: var(--accent-magenta);
+  text-shadow: 0 0 20px rgba(255, 79, 216, 0.5);
+}
+.wrm-title--preview {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 20px rgba(32, 227, 255, 0.5);
+}
+
+.wrm-prize-name {
+  font-size: 18px;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-4);
+}
+.wrm-prize-name strong {
+  color: var(--accent-cyan);
+  font-size: 22px;
+}
+
+/* Claim code box */
+.wrm-claim {
+  background: var(--bg-raised);
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wrm-claim-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.wrm-claim-code {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 12px rgba(32, 227, 255, 0.5);
+  letter-spacing: 2px;
+}
+
+.wrm-instruction {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-4);
+}
+
+.wrm-simulation-notice {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-4);
+  font-style: italic;
+}
+
+/* Animations */
+@keyframes wrm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wrm-pop-in {
+  from { opacity: 0; transform: scale(0.85) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes wrm-icon-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.25); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@keyframes wrm-confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .wrm-backdrop { animation: none; }
+  .wrm-dialog { animation: none; }
+  .wrm-icon { animation: none; }
+  .wrm-confetti-piece { animation: none; display: none; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .wrm-dialog {
+    max-width: calc(100vw - 32px);
+  }
+  .wrm-content {
+    padding: var(--space-5) var(--space-4) var(--space-3);
+  }
+  .wrm-icon {
+    font-size: 48px;
+  }
+  .wrm-title {
+    font-size: 22px;
+  }
+  .wrm-claim-code {
+    font-size: 22px;
+  }
+}

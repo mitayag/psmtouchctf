@@ -1,0 +1,48 @@
+.prize-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.prize-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.prize-legend-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.prize-legend-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.prize-legend-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.prize-legend-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}

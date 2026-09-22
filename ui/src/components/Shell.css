@@ -1,0 +1,36 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--shell-padding);
+  gap: var(--space-4);
+}
+
+.shell-header {
+  flex: 0 0 auto;
+}
+
+.shell-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.shell-footer {
+  flex: 0 0 auto;
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 1280px) {
+  .shell {
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 1440px) {
+  .shell {
+    gap: 10px;
+  }
+}
