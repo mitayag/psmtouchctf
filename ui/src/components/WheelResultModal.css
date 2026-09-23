@@ -20,6 +20,8 @@
   box-shadow: 0 0 30px rgba(32, 227, 255, 0.2), var(--shadow-md);
   max-width: 440px;
   width: 100%;
+  max-height: 90vh;
+  max-height: 90dvh;
   outline: none;
   animation: wrm-pop-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   overflow: hidden;
@@ -31,8 +33,8 @@
   top: 12px;
   right: 12px;
   z-index: 2;
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -83,6 +85,7 @@
   z-index: 2;
   padding: var(--space-6) var(--space-5) var(--space-4);
   text-align: center;
+  overflow-y: auto;
 }
 
 .wrm-icon {

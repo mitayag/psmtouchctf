@@ -49,7 +49,7 @@
   color: var(--color-primary, #20e3ff);
   font-weight: 600;
   cursor: pointer;
-  min-height: 48px;
+  min-height: 56px;
 }
 
 .status-overlay__retry:hover {

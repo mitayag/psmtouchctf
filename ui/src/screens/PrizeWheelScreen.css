@@ -4,7 +4,7 @@
 .pw-prize-card.revealed { animation: prize-reveal 0.6s ease; }
 @keyframes prize-reveal { 0% { transform: scale(1); } 50% { transform: scale(1.08); box-shadow: 0 0 24px rgba(255,79,216,0.4); } 100% { transform: scale(1); } }
 
-.pw-wheel-wrap { width: 100%; max-width: 560px; margin: 0 auto; }
+.pw-wheel-wrap { width: 100%; max-width: 560px; max-width: min(560px, max(240px, calc(100vh - 240px))); max-width: min(560px, max(240px, calc(100dvh - 240px))); margin: 0 auto; }
 .pw-no-stock { color: var(--state-warning); margin-top: var(--space-3); text-align: center; font-weight: 600; }
 .pw-instruction { text-align: center; color: var(--text-muted); font-size: 14px; margin-top: var(--space-3); }
 .pw-spinning-status { text-align: center; margin: var(--space-4) 0; }
@@ -20,4 +20,4 @@
   .pw-spinning-text { animation: none !important; }
   .pw-revealed { animation: none !important; }
 }
-@media(max-width:1280px){.pw-title{font-size:36px}.pw-panel-title{font-size:32px}}@media(max-width:1024px){.pw-layout{grid-template-columns:1fr;grid-template-rows:auto 1fr;overflow:auto}.pw-wheel-area{margin-bottom:var(--space-4)}}@media(max-width:768px){.pw-prizes{grid-template-columns:1fr}.pw-title{font-size:28px}.pw-panel-title{font-size:26px}}
+@media(max-width:1280px){.pw-title{font-size:36px}.pw-panel-title{font-size:32px}}@media(max-width:1024px){.pw-layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}.pw-wheel-area{margin-bottom:var(--space-4)}}@media(max-width:768px){.pw-prizes{grid-template-columns:1fr}.pw-title{font-size:28px}.pw-panel-title{font-size:26px}}

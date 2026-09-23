@@ -16,7 +16,7 @@
 
 .touch-key {
   min-width: 48px;
-  height: 52px;
+  height: 56px;
   flex: 1;
   max-width: 72px;
   background: var(--bg-surface);
@@ -57,7 +57,7 @@
 
 @media (max-width: 768px) {
   .touch-key {
-    height: 44px;
+    height: 56px;
     font-size: 16px;
     min-width: 36px;
   }

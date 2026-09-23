@@ -73,6 +73,11 @@
   background: transparent;
   color: var(--sa-accent);
   border-radius: var(--radius-sm, 8px);
+  min-height: 56px;
+  min-width: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 14px;
   font-size: 14px;
   font-weight: 600;

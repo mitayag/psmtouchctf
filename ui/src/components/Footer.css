@@ -48,3 +48,18 @@
     display: none;
   }
 }
+
+@media (max-height: 760px) and (orientation: landscape) {
+  .app-footer {
+    padding: 0 var(--space-3);
+    font-size: 12px;
+    gap: var(--space-3);
+  }
+  .app-footer-center {
+    font-size: 11px;
+  }
+  .app-footer-left,
+  .app-footer-right {
+    gap: var(--space-3);
+  }
+}

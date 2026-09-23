@@ -4,6 +4,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-canvas);
 }
 
@@ -136,6 +137,7 @@
   display: grid;
   grid-template-columns: 240px 1fr;
   height: 100vh;
+  height: 100dvh;
   background: var(--bg-canvas);
 }
 

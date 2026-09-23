@@ -73,3 +73,11 @@
     --shell-padding: 24px;
   }
 }
+
+@media (max-height: 760px) and (orientation: landscape) {
+  :root {
+    --header-height: 64px;
+    --footer-height: 56px;
+    --shell-padding: 10px;
+  }
+}
