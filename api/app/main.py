@@ -13,14 +13,14 @@ from sqlalchemy.orm import Session
 
 from app import engine, models, schemas, seed
 from app.config import get_settings
-from app.database import Base, SessionLocal, engine as db_engine, get_db
+from app.database import SessionLocal, engine as db_engine, ensure_columns, get_db
 
 logger = logging.getLogger("touchctf")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=db_engine)
+    ensure_columns(db_engine)
     db = SessionLocal()
     try:
         seed.seed(db)

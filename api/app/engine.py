@@ -171,6 +171,32 @@ def get_or_create_pool(
         )
         db.add(pool)
         db.flush()
+    else:
+        # The published set can change after the pool was created (seed
+        # unpublishes old revisions and publishes new ones). Drop stale IDs
+        # and backfill missing published IDs so assignment never references
+        # an unpublished revision.
+        valid = set(published_revision_ids)
+        cleaned_pool = [rid for rid in (pool.pool or []) if rid in valid]
+        cleaned_consumed = [rid for rid in (pool.consumed or []) if rid in valid]
+        present = set(cleaned_pool) | set(cleaned_consumed)
+        missing = [rid for rid in published_revision_ids if rid not in present]
+        stale = (
+            len(cleaned_pool) != len(pool.pool or [])
+            or len(cleaned_consumed) != len(pool.consumed or [])
+            or (pool.last_assigned_revision_id and pool.last_assigned_revision_id not in valid)
+            or any(rid not in valid for rid in (pool.recently_assigned or []))
+        )
+        if missing or stale:
+            pool.pool = cleaned_pool + missing
+            pool.consumed = cleaned_consumed
+            if missing or not cleaned_pool:
+                secrets.SystemRandom().shuffle(pool.pool)
+            if pool.last_assigned_revision_id and pool.last_assigned_revision_id not in valid:
+                pool.last_assigned_revision_id = None
+            if pool.recently_assigned:
+                pool.recently_assigned = [rid for rid in pool.recently_assigned if rid in valid] or None
+            db.flush()
     return pool
 
 
@@ -224,7 +250,11 @@ def select_challenges(db: Session, event_id: str, ruleset_id: str) -> list[model
         revision_ids = [r.id for r in revisions]
         pool = get_or_create_pool(db, event_id, ruleset_id, ctype, revision_ids)
         chosen_id = pop_pool_assignment(pool)
-        chosen = next(r for r in revisions if r.id == chosen_id)
+        chosen = next((r for r in revisions if r.id == chosen_id), None)
+        if chosen is None:
+            # Should be unreachable after pool reconciliation; surface as a
+            # retryable client error instead of StopIteration → 500.
+            raise ValueError("Challenge pool referenced an unpublished revision; please retry.")
         selected.append(chosen)
     # Randomize presentation order
     secrets.SystemRandom().shuffle(selected)

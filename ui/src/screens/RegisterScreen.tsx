@@ -9,10 +9,18 @@ import { TouchKeyboard } from '../components/TouchKeyboard';
 import { SoundActivator } from '../components/SoundActivator';
 import { createSession } from '../hooks/useGameSession';
 import { generateAlias } from '../services/fixtureData';
+import { describeStartError } from '../services/startErrors';
+import type { StartErrorKind } from '../services/startErrors';
 import type { AccessibilityMode } from '../types';
 import './RegisterScreen.css';
 
 const VALID_NAME = /^[a-zA-Z0-9 _\-]{0,20}$/;
+
+interface PendingStart {
+  signature: string;
+  /** True when the last failure may have created a session server-side (timeout/network). */
+  recover: boolean;
+}
 
 export function RegisterScreen() {
   const navigate = useNavigate();
@@ -22,10 +30,20 @@ export function RegisterScreen() {
   const [mode, setMode] = useState<AccessibilityMode>('standard');
   const [showRules, setShowRules] = useState(false);
   const [error, setError] = useState('');
+  const [errorKind, setErrorKind] = useState<StartErrorKind | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(true);
   const [isReadying, setIsReadying] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const readyButtonRef = useRef<HTMLButtonElement>(null);
+  const pendingStartRef = useRef<PendingStart | null>(null);
+  // Ref guard: state updates don't apply within the same tick, so two rapid
+  // taps would both pass an `isReadying` state check.
+  const isReadyingRef = useRef(false);
+
+  const clearError = useCallback(() => {
+    setError('');
+    setErrorKind(null);
+  }, []);
 
   const validate = useCallback((value: string): string => {
     const trimmed = value.trim();
@@ -43,13 +61,13 @@ export function RegisterScreen() {
 
   const onKey = useCallback((key: string) => {
     setAlias((a) => (a.length < 20 ? a + key : a));
-    setError('');
-  }, []);
+    clearError();
+  }, [clearError]);
 
   const onBackspace = useCallback(() => {
     setAlias((a) => a.slice(0, -1));
-    setError('');
-  }, []);
+    clearError();
+  }, [clearError]);
 
   const closeKeyboard = useCallback(() => {
     setKeyboardVisible(false);
@@ -63,26 +81,39 @@ export function RegisterScreen() {
   }, []);
 
   const ready = async () => {
-    if (isReadying) return;
+    if (isReadyingRef.current) return;
 
     const trimmed = alias.trim();
     if (trimmed.length > 0) {
       const validationError = validate(trimmed);
       if (validationError) {
         setError(validationError);
+        setErrorKind('validation');
         openKeyboard();
         return;
       }
     }
 
     const name = trimmed || generateAlias();
+    const signature = `${name}|${consent}|${mode}`;
+    const pending = pendingStartRef.current;
+    // After a timeout/network failure the session may already exist server-side:
+    // retry without force_new so the server returns it instead of creating another.
+    const recover = pending?.signature === signature && pending.recover;
+    isReadyingRef.current = true;
     setIsReadying(true);
 
     try {
-      const session = await createSession(name, consent, mode, true);
+      const session = await createSession(name, consent, mode, !recover);
+      pendingStartRef.current = null;
+      clearError();
       navigate(`/play/${session.id}/ready`);
     } catch (e) {
-      setError((e as Error).message || 'Failed to start. Please try again.');
+      const info = describeStartError(e);
+      setError(info.message);
+      setErrorKind(info.kind);
+      pendingStartRef.current = { signature, recover: info.kind === 'connection' };
+      isReadyingRef.current = false;
       setIsReadying(false);
     }
   };
@@ -116,10 +147,6 @@ export function RegisterScreen() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [closeKeyboard, onBackspace, onKey]);
 
-  useEffect(() => {
-    if (error) setError(validate(alias.trim()));
-  }, [alias, error, validate]);
-
   return (
     <Shell
       header={<Header title="Registration" subtitle="Get ready to play" />}
@@ -140,20 +167,20 @@ export function RegisterScreen() {
             ref={inputRef}
             id="alias"
             type="text"
-            className={`register-input ${error ? 'invalid' : ''}`}
+            className={`register-input ${errorKind === 'validation' ? 'invalid' : ''}`}
             value={alias}
             onChange={(e) => {
               const v = e.target.value.slice(0, 20);
               if (v === '' || VALID_NAME.test(v)) {
                 setAlias(v);
-                setError('');
+                clearError();
               }
             }}
             onFocus={openKeyboard}
             placeholder="CyberPlayer"
             maxLength={20}
             readOnly
-            aria-invalid={!!error}
+            aria-invalid={errorKind === 'validation'}
             aria-describedby={error ? 'alias-error' : 'alias-hint'}
             autoComplete="off"
           />
@@ -161,7 +188,20 @@ export function RegisterScreen() {
             <TouchKeyboard onKey={onKey} onBackspace={onBackspace} onDone={closeKeyboard} mode="text" />
           )}
           {error ? (
-            <p id="alias-error" className="register-error" role="alert">{error}</p>
+            <div id="alias-error" className="register-error-block" role="alert">
+              <p className="register-error">{error}</p>
+              {errorKind && errorKind !== 'validation' && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={ready}
+                  data-testid="start-retry-button"
+                  disabled={isReadying}
+                >
+                  {isReadying ? 'Starting…' : 'Retry'}
+                </Button>
+              )}
+            </div>
           ) : (
             <p id="alias-hint" className="register-hint">No personal info required. Generated aliases are fine.</p>
           )}

@@ -241,8 +241,10 @@ function playFallbackTone(name: SoundName) {
     const start = ctx.currentTime + i * 0.02;
     gain.gain.setValueAtTime(0, start);
     gain.gain.linearRampToValueAtTime(def.vol, start + 0.01);
-    gain.gain.setValueAtTime(def.vol, start + def.duration - 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + def.duration);
+    // Clamp: short tones (duration < 0.1) would otherwise schedule a
+    // negative time (e.g. start + 0.08 - 0.1 = start - 0.02).
+    gain.gain.setValueAtTime(def.vol, Math.max(start + 0.01, start + def.duration - 0.1));
+    gain.gain.exponentialRampToValueAtTime(0.001, Math.max(start + 0.02, start + def.duration));
     osc.connect(gain);
     gain.connect(master);
     osc.start(start);

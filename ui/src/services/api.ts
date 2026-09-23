@@ -39,6 +39,20 @@ function requestId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Bound network waits on the startup path so a hung request surfaces as a retryable error. */
+const START_TIMEOUT_MS = 12000;
+
+function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal | undefined {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  if (!signal) return timeout;
+  if (signal.aborted) return signal;
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeout]);
+  const ctrl = new AbortController();
+  signal.addEventListener('abort', () => ctrl.abort(signal.reason), { once: true });
+  timeout.addEventListener('abort', () => ctrl.abort(timeout.reason), { once: true });
+  return ctrl.signal;
+}
+
 async function apiFetch(path: string, options: RequestInit = {}, signal?: AbortSignal): Promise<unknown> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -46,7 +60,19 @@ async function apiFetch(path: string, options: RequestInit = {}, signal?: AbortS
     'x-request-id': requestId(),
     ...(options.headers as Record<string, string> || {}),
   };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal });
+  } catch (e) {
+    if ((e as Error)?.name === 'TimeoutError') {
+      const err = new Error(
+        'Could not reach the game server in time. Check your connection and try again.',
+      ) as Error & { statusCode?: number; isTimeout?: boolean };
+      err.isTimeout = true;
+      throw err;
+    }
+    throw e;
+  }
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {
@@ -171,7 +197,7 @@ function mapSession(backend: any): GameSession {
     startedAt: backend.started_at,
     expiresAt: backend.expires_at,
     serverNow: backend.server_now,
-    challenges: backend.challenges.map(mapSessionChallenge),
+    challenges: (backend.challenges || []).map(mapSessionChallenge),
     flagCaptured: false,
     flagValue: null,
     score: backend.score,
@@ -256,7 +282,7 @@ export const api = {
         kiosk_credential: getKioskCredential(),
         force_new: forceNew,
       }),
-    }, signal) as any;
+    }, withTimeout(signal, START_TIMEOUT_MS)) as any;
     return mapSession(data);
   },
 
@@ -266,12 +292,12 @@ export const api = {
   },
 
   async startRound(sessionId: string, signal?: AbortSignal): Promise<GameSession> {
-    const data = await apiFetch(`/sessions/${sessionId}/begin`, { method: 'POST' }, signal) as any;
+    const data = await apiFetch(`/sessions/${sessionId}/begin`, { method: 'POST' }, withTimeout(signal, START_TIMEOUT_MS)) as any;
     return mapSession(data);
   },
 
   async prepare(sessionId: string, signal?: AbortSignal): Promise<GameSession> {
-    const data = await apiFetch(`/sessions/${sessionId}/prepare`, { method: 'POST' }, signal) as any;
+    const data = await apiFetch(`/sessions/${sessionId}/prepare`, { method: 'POST' }, withTimeout(signal, START_TIMEOUT_MS)) as any;
     return mapSession(data);
   },
 

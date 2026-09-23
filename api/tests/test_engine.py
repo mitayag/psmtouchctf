@@ -773,3 +773,89 @@ def test_weighted_selection_uses_cryptographic_randomness(db):
 
     # Should have won at least 2 different prizes
     assert len(prizes_won) >= 2
+
+
+def test_stale_pool_ids_reconciled_on_next_assignment(db):
+    """Seed republishes challenges as new revision IDs; pools created earlier
+    still reference unpublished revisions and must be healed before assignment."""
+    from app import models
+
+    event = game_engine.ensure_event(db)
+    ruleset = game_engine.get_published_ruleset(db, event.id)
+
+    # Simulate a pool created before re-seed: only stale (unpublished) IDs.
+    pool = game_engine.get_or_create_pool(
+        db, event.id, ruleset.id, models.ChallengeType.phishing, ["stale-old-1"]
+    )
+    pool.pool = ["stale-old-1", "stale-old-2"]
+    pool.consumed = ["stale-old-3"]
+    pool.last_assigned_revision_id = "stale-old-3"
+    pool.recently_assigned = ["stale-old-3"]
+    db.flush()
+
+    published = (
+        db.query(models.ChallengeRevision)
+        .join(models.Challenge)
+        .filter(
+            models.Challenge.challenge_type == models.ChallengeType.phishing,
+            models.ChallengeRevision.published == True,
+        )
+        .all()
+    )
+    published_ids = {r.id for r in published}
+    assert published_ids
+    assert not (published_ids & {"stale-old-1", "stale-old-2", "stale-old-3"})
+
+    # select_challenges reconciles the pool, then assigns only published IDs.
+    selected = game_engine.select_challenges(db, event.id, ruleset.id)
+    assert len(selected) == 3
+    assert all(r.published for r in selected)
+    assert all(r.id in published_ids or r.challenge.challenge_type != models.ChallengeType.phishing for r in selected)
+
+    db.refresh(pool)
+    assert set(pool.pool) | set(pool.consumed) == published_ids
+    assert pool.last_assigned_revision_id in published_ids
+
+
+def test_pool_reconcile_backfills_when_all_entries_stale(db):
+    from app import models
+
+    event = game_engine.ensure_event(db)
+    ruleset = game_engine.get_published_ruleset(db, event.id)
+    for ctype in (
+        models.ChallengeType.phishing,
+        models.ChallengeType.logs,
+        models.ChallengeType.decode,
+    ):
+        pool = game_engine.get_or_create_pool(db, event.id, ruleset.id, ctype, [])
+        pool.pool = ["bogus"]
+        pool.consumed = ["bogus-2"]
+        db.flush()
+
+    selected = game_engine.select_challenges(db, event.id, ruleset.id)
+    assert len(selected) == 3
+    assert all(r.published for r in selected)
+
+
+def test_get_or_create_pool_noop_when_pool_already_matches(db):
+    from app import models
+
+    event = game_engine.ensure_event(db)
+    ruleset = game_engine.get_published_ruleset(db, event.id)
+    published_ids = [
+        r.id
+        for r in db.query(models.ChallengeRevision)
+        .join(models.Challenge)
+        .filter(
+            models.Challenge.challenge_type == models.ChallengeType.decode,
+            models.ChallengeRevision.published == True,
+        )
+        .all()
+    ]
+    pool = game_engine.get_or_create_pool(db, event.id, ruleset.id, models.ChallengeType.decode, published_ids)
+    before_pool = list(pool.pool)
+    before_consumed = list(pool.consumed)
+    pool2 = game_engine.get_or_create_pool(db, event.id, ruleset.id, models.ChallengeType.decode, published_ids)
+    assert pool2.id == pool.id
+    assert pool2.pool == before_pool
+    assert pool2.consumed == before_consumed
