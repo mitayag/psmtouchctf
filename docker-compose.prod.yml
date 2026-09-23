@@ -29,6 +29,7 @@ services:
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
+      DATABASE_BACKEND: postgresql
       DATABASE_URL: postgresql://touchctf:${DB_PASSWORD}@db:5432/touchctf
       APP_SECRET_FILE: /run/secrets/app_secret
     secrets:
@@ -45,6 +46,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
     environment:
+      DATABASE_BACKEND: postgresql
       DATABASE_URL: postgresql://touchctf:${DB_PASSWORD}@db:5432/touchctf
       APP_SECRET_FILE: /run/secrets/app_secret
       APP_ENV: production

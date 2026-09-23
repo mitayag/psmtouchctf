@@ -34,14 +34,17 @@ def get_settings() -> Settings:
 def get_database_url(settings: Settings | None = None) -> str:
     settings = settings or get_settings()
     url = settings.database_url
-    if settings.database_backend == "postgresql":
-        url = url or "postgresql://touchctf:touchctf@db:5432/touchctf"
-        # SQLAlchemy defaults to psycopg2 for plain postgresql:// URLs.
-        # We ship psycopg v3, so ensure the correct driver is requested.
-        if url.startswith("postgresql://"):
-            url = "postgresql+psycopg" + url[len("postgresql"):]
-        return url
-    return url or f"sqlite:///{settings.sqlite_path}"
+    if not url:
+        if settings.database_backend == "postgresql":
+            url = "postgresql://touchctf:touchctf@db:5432/touchctf"
+        else:
+            return f"sqlite:///{settings.sqlite_path}"
+    # SQLAlchemy defaults to psycopg2 for plain postgresql:// URLs.
+    # We ship psycopg v3, so ensure the correct driver is requested —
+    # regardless of how the URL was provided (DATABASE_URL env or backend default).
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg" + url[len("postgresql"):]
+    return url
 
 
 def load_secret_file(path: str | None, fallback: str) -> str:

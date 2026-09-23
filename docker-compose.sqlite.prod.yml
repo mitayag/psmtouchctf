@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
+      DATABASE_BACKEND: sqlite
       DATABASE_URL: sqlite:///data/touchctf.db
       APP_SECRET_FILE: /run/secrets/app_secret
     secrets:
@@ -19,6 +20,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
     environment:
+      DATABASE_BACKEND: sqlite
       DATABASE_URL: sqlite:///data/touchctf.db
       APP_SECRET_FILE: /run/secrets/app_secret
       APP_ENV: production
