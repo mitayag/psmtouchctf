@@ -1,9 +1,12 @@
 FROM python:3.14-slim AS builder
 
 WORKDIR /app
+# pip --user as root would install to /root/.local; pin the user base so the
+# runtime stage can COPY a stable path (/app/.local) and non-root can read it.
+ENV PYTHONUSERBASE=/app/.local
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user --root-user-action=ignore -r requirements.txt
 
 FROM python:3.14-slim
 

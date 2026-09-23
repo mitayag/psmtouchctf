@@ -9,6 +9,7 @@ function makeSession(id: string): GameSession {
     consent: true,
     accessibilityMode: 'standard',
     state: 'active',
+    preparedAt: null,
     startedAt: new Date(Date.now() - 30_000).toISOString(),
     expiresAt: new Date(Date.now() + 150_000).toISOString(),
     serverNow: new Date().toISOString(),

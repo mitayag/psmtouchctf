@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # PSM TouchCTF — Ubuntu 24.04 LTS Installer
-# Installs Docker, builds images, starts the stack, seeds data, creates admin.
+# Installs Docker, builds images (API + frontend inside Docker), starts the
+# stack, verifies migrations/seed data, and creates the administrator.
 #
 # Usage:
 #   sudo bash install.sh [--port PORT] [--hostname HOSTNAME] [--sqlite]
 #
 # Requirements: Ubuntu 24.04, 4 CPU cores, 4 GB RAM, 40 GB SSD, root/sudo.
+#
+# Safe to re-run: existing .env, secrets/, database volumes and accounts
+# are always preserved.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -17,15 +21,25 @@ ok()    { printf "${GREEN}[ OK ]${NC}  %s\n" "$*"; }
 warn()  { printf "${YELLOW}[WARN]${NC}  %s\n" "$*"; }
 die()   { printf "${RED}[FAIL]${NC}  %s\n" "$*" >&2; exit 1; }
 
+validate_port() {
+  [[ "$1" =~ ^[0-9]+$ ]] || die "Invalid port: $1 (must be a number)"
+  (( $1 >= 1 && $1 <= 65535 )) || die "Invalid port: $1 (must be 1-65535)"
+}
+
 # ── Parse arguments ──────────────────────────────────────────────────────────
 APP_PORT=80
+PORT_EXPLICIT=false
 HOSTNAME_ARG=""
 USE_SQLITE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port)      APP_PORT="$2"; shift 2 ;;
-    --hostname)  HOSTNAME_ARG="$2"; shift 2 ;;
+    --port)
+      [[ $# -ge 2 ]] || die "--port requires a value"
+      APP_PORT="$2"; PORT_EXPLICIT=true; shift 2 ;;
+    --hostname)
+      [[ $# -ge 2 ]] || die "--hostname requires a value"
+      HOSTNAME_ARG="$2"; shift 2 ;;
     --sqlite)    USE_SQLITE=true; shift ;;
     -h|--help)
       echo "Usage: sudo bash install.sh [--port PORT] [--hostname HOSTNAME] [--sqlite]"
@@ -34,10 +48,13 @@ while [[ $# -gt 0 ]]; do
       echo "  --port PORT        HTTP port (default: 80)"
       echo "  --hostname HOST    Server hostname for display"
       echo "  --sqlite           Use SQLite instead of PostgreSQL"
+      echo ""
+      echo "Re-running is safe: .env, secrets, database volumes and accounts are preserved."
       exit 0 ;;
     *) die "Unknown argument: $1" ;;
   esac
 done
+validate_port "$APP_PORT"
 
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 info "PSM TouchCTF Installer"
@@ -68,7 +85,7 @@ fi
 
 # Check disk space (warn if < 20 GB free)
 FREE_DISK_GB=$(df -BG / | awk 'NR==2{print $4}' | tr -d 'G')
-if [[ $FREE_DISK_GB -lt 20 ]]; then
+if [[ -n "$FREE_DISK_GB" && "$FREE_DISK_GB" =~ ^[0-9]+$ && $FREE_DISK_GB -lt 20 ]]; then
   warn "Only ${FREE_DISK_GB} GB free disk space. Recommended minimum is 40 GB."
 fi
 
@@ -101,6 +118,7 @@ else
 
   systemctl enable docker
   systemctl start docker
+  docker info &>/dev/null || die "Docker installed but the daemon is not running."
   ok "Docker installed: $(docker --version)"
 fi
 
@@ -140,7 +158,6 @@ fi
 
 # ── Configure application ───────────────────────────────────────────────────
 ENV_FILE="${PROJECT_DIR}/.env"
-ENV_EXAMPLE="${PROJECT_DIR}/.env.prod.example"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   DB_PASSWORD_VALUE=""
@@ -160,7 +177,27 @@ ENVEOF
   chmod 600 "$ENV_FILE"
   ok "Created .env configuration"
 else
-  ok ".env already exists — preserving"
+  ok ".env already exists — preserving existing configuration"
+  # Keep all settings; only honour an explicit --port change, otherwise
+  # adopt the configured port so checks match what the stack will bind.
+  ENV_PORT=$(sed -n 's/^HTTP_PORT=//p' "$ENV_FILE" | tail -n 1)
+  if [[ "$PORT_EXPLICIT" == "true" ]]; then
+    if [[ -z "$ENV_PORT" ]]; then
+      printf '\nHTTP_PORT=%s\n' "$APP_PORT" >> "$ENV_FILE"
+      chmod 600 "$ENV_FILE"
+      ok "Added HTTP_PORT=${APP_PORT} to existing .env"
+    elif [[ "$ENV_PORT" != "$APP_PORT" ]]; then
+      ENV_TMP="${ENV_FILE}.tmp.$$"
+      sed "s/^HTTP_PORT=.*/HTTP_PORT=${APP_PORT}/" "$ENV_FILE" > "$ENV_TMP"
+      chmod 600 "$ENV_TMP"
+      mv "$ENV_TMP" "$ENV_FILE"
+      ok "Updated HTTP_PORT in .env: ${ENV_PORT} → ${APP_PORT} (all other settings preserved)"
+    fi
+  elif [[ -n "$ENV_PORT" ]]; then
+    APP_PORT="$ENV_PORT"
+    info "Using HTTP_PORT=${APP_PORT} from existing .env"
+  fi
+  validate_port "$APP_PORT"
 fi
 
 # ── Select compose file ─────────────────────────────────────────────────────
@@ -171,75 +208,151 @@ else
   COMPOSE_FILE="docker-compose.prod.yml"
   info "Using PostgreSQL production configuration"
 fi
+COMPOSE_FILE_PATH="${PROJECT_DIR}/${COMPOSE_FILE}"
 
-# ── Check port availability ─────────────────────────────────────────────────
-if command -v ss &>/dev/null; then
-  PORT_USER=$(ss -tlnp 2>/dev/null | grep ":${APP_PORT} " | head -1)
-elif command -v netstat &>/dev/null; then
-  PORT_USER=$(netstat -tlnp 2>/dev/null | grep ":${APP_PORT} " | head -1)
-else
-  PORT_USER=""
-fi
+compose() {
+  docker compose -f "$COMPOSE_FILE_PATH" "$@"
+}
 
-if [[ -n "$PORT_USER" ]]; then
-  die "Port ${APP_PORT} is already in use: ${PORT_USER}\nChoose a different port with --port PORT"
-fi
-ok "Port ${APP_PORT} is available"
+compose_logs() {
+  compose logs --tail=40 "$@" 2>/dev/null || true
+}
 
 # ── Validate compose configuration ──────────────────────────────────────────
 info "Validating Docker Compose configuration..."
 cd "$PROJECT_DIR"
-if ! docker compose -f "$COMPOSE_FILE" config --quiet 2>&1; then
+if ! compose config --quiet 2>&1; then
   die "Invalid Docker Compose configuration in ${COMPOSE_FILE}"
 fi
 ok "Compose configuration is valid"
 
-# ── Build frontend (required for nginx serving) ─────────────────────────────
-UI_DIST="${PROJECT_DIR}/ui/dist"
-if [[ ! -d "$UI_DIST" ]]; then
-  info "Building frontend..."
-  if command -v node &>/dev/null && command -v npm &>/dev/null; then
-    cd "${PROJECT_DIR}/ui"
-    npm ci --silent
-    npm run build --silent
-    cd "$PROJECT_DIR"
-    ok "Frontend built successfully"
+# ── Check port availability ─────────────────────────────────────────────────
+# Distinguishes three cases:
+#   1. Port free                     → proceed
+#   2. Port held by our edge service → repeat install; it will be re-created
+#   3. Port held by something else   → fail with details
+# A grep "no match" (exit 1) is the expected free-port result and must not
+# abort the script; only genuine ss/netstat inspection failures are fatal.
+inspect_port_listener() {
+  local listing=""
+  if command -v ss &>/dev/null; then
+    if ! listing=$(ss -tlnp 2>/dev/null); then
+      die "Failed to inspect listening TCP ports with 'ss'."
+    fi
+  elif command -v netstat &>/dev/null; then
+    if ! listing=$(netstat -tlnp 2>/dev/null); then
+      die "Failed to inspect listening TCP ports with 'netstat'."
+    fi
   else
-    info "Node.js not found on host — frontend will be built inside Docker during image build."
+    warn "Neither 'ss' nor 'netstat' is available — skipping port inspection."
+    PORT_LISTENER=""
+    return 0
+  fi
+  PORT_LISTENER=$(printf '%s\n' "$listing" | grep -E ":${APP_PORT}([[:space:]]|$)" | head -n 1 || true)
+}
+
+inspect_port_listener
+
+if [[ -n "$PORT_LISTENER" ]]; then
+  OWNED_BY_US=false
+  EDGE_CID=$(compose ps -q edge 2>/dev/null | head -n 1 || true)
+  if [[ -n "$EDGE_CID" ]] && [[ "$(docker inspect -f '{{.State.Running}}' "$EDGE_CID" 2>/dev/null || echo false)" == "true" ]]; then
+    EDGE_BINDINGS=$(docker inspect -f '{{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}} {{end}}{{end}}' "$EDGE_CID" 2>/dev/null || true)
+    case " ${EDGE_BINDINGS} " in
+      *" ${APP_PORT} "*) OWNED_BY_US=true ;;
+    esac
+  fi
+  if [[ "$OWNED_BY_US" == "true" ]]; then
+    info "Port ${APP_PORT} is held by the existing PSM TouchCTF edge service — it will be re-created."
+  else
+    warn "Port ${APP_PORT} is already in use: ${PORT_LISTENER}"
+    die "Choose a different port with --port PORT"
   fi
 else
-  ok "Frontend build already exists"
+  ok "Port ${APP_PORT} is available"
 fi
 
+# ── Frontend ────────────────────────────────────────────────────────────────
+info "Frontend will be built inside Docker (multi-stage edge image) — Node.js is not required on the host."
+
 # ── Start the stack ─────────────────────────────────────────────────────────
-info "Starting application stack..."
+info "Starting application stack (builds API + frontend images, runs migrations)..."
 
-# Stop any existing stack gracefully
-docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+# Stop any existing stack gracefully. Named volumes are NOT removed,
+# so database data and accounts survive reinstallation.
+compose down 2>/dev/null || true
 
-# Start new stack
-docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
+if ! compose up -d --build --remove-orphans; then
+  compose_logs
+  die "Failed to start the application stack. See logs above."
+fi
 ok "Stack started"
 
-# ── Wait for health ─────────────────────────────────────────────────────────
-info "Waiting for application to become healthy..."
+# ── Verify migrations (via the migrate service, never create_all) ──────────
+info "Verifying database migrations..."
 
-MAX_WAIT=120
-WAITED=0
-HEALTHY=false
+MIGRATE_CID=$(compose ps -aq migrate 2>/dev/null | head -n 1 || true)
+if [[ -z "$MIGRATE_CID" ]]; then
+  compose_logs
+  die "Migration service did not run. Check: docker compose -f ${COMPOSE_FILE} logs migrate"
+fi
 
-while [[ $WAITED -lt $MAX_WAIT ]]; do
-  # Check if the API container is healthy
-  API_HEALTH=$(docker compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1 || echo "")
-  if echo "$API_HEALTH" | grep -q "healthy"; then
-    HEALTHY=true
+MIGRATE_WAITED=0
+while true; do
+  MIGRATE_STATE=$(docker inspect -f '{{.State.Status}}' "$MIGRATE_CID" 2>/dev/null || echo "missing")
+  if [[ "$MIGRATE_STATE" == "missing" ]]; then
+    compose_logs migrate
+    die "Migration container disappeared before completing."
+  fi
+  if [[ "$MIGRATE_STATE" != "running" && "$MIGRATE_STATE" != "created" ]]; then
     break
   fi
+  if [[ $MIGRATE_WAITED -ge 300 ]]; then
+    compose_logs migrate
+    die "Database migration did not finish within 300s."
+  fi
+  sleep 5
+  MIGRATE_WAITED=$((MIGRATE_WAITED + 5))
+  printf "."
+done
+echo ""
 
-  # Also try direct HTTP check
-  if curl -sf "http://localhost:${APP_PORT}/healthz" >/dev/null 2>&1; then
-    HEALTHY=true
-    break
+MIGRATE_EXIT=$(docker inspect -f '{{.State.ExitCode}}' "$MIGRATE_CID")
+if [[ "$MIGRATE_EXIT" != "0" ]]; then
+  compose_logs migrate
+  die "Database migration failed (exit code ${MIGRATE_EXIT})."
+fi
+ok "Database migrations completed successfully (alembic upgrade head)"
+
+# ── Wait for the API service (explicit service, exact health match) ────────
+info "Waiting for the API service to become healthy..."
+
+API_CID=""
+API_HEALTHY=false
+UNHEALTHY_WARNED=false
+MAX_WAIT=180
+WAITED=0
+
+while [[ $WAITED -lt $MAX_WAIT ]]; do
+  API_CID=$(compose ps -aq api 2>/dev/null | head -n 1 || true)
+  if [[ -n "$API_CID" ]]; then
+    API_STATE=$(docker inspect -f '{{.State.Status}}' "$API_CID" 2>/dev/null || true)
+    API_HEALTH=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$API_CID" 2>/dev/null || true)
+
+    if [[ "$API_STATE" == "exited" || "$API_STATE" == "dead" ]]; then
+      compose_logs api
+      die "API container stopped (state: ${API_STATE})."
+    fi
+
+    # Exact match only — 'unhealthy' must never be treated as healthy.
+    if [[ "$API_HEALTH" == "healthy" ]]; then
+      API_HEALTHY=true
+      break
+    fi
+    if [[ "$API_HEALTH" == "unhealthy" && "$UNHEALTHY_WARNED" == "false" ]]; then
+      warn "API health probe is failing (continuing to wait)..."
+      UNHEALTHY_WARNED=true
+    fi
   fi
 
   sleep 5
@@ -248,42 +361,89 @@ while [[ $WAITED -lt $MAX_WAIT ]]; do
 done
 echo ""
 
-if [[ "$HEALTHY" == "true" ]]; then
-  ok "Application is healthy"
-else
-  warn "Health check timed out after ${MAX_WAIT}s. Checking container logs..."
-  docker compose -f "$COMPOSE_FILE" logs --tail=30
-  warn "The application may still be starting. Check logs with:"
-  warn "  docker compose -f ${COMPOSE_FILE} logs -f"
+if [[ "$API_HEALTHY" != "true" ]]; then
+  compose_logs api db migrate
+  die "API service did not become healthy within ${MAX_WAIT}s."
 fi
+ok "API service is healthy"
 
-# ── Seed challenge data ─────────────────────────────────────────────────────
+# ── Verify API readiness directly (not the edge /healthz) ──────────────────
+info "Verifying API readiness directly (API + database)..."
+
+if ! docker exec "$API_CID" python3 -c "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=5); raise SystemExit(0 if r.status == 200 else 1)"; then
+  compose_logs api
+  die "API readiness check failed inside the api container (/api/v1/health/ready)."
+fi
+ok "API is ready and the database connection works"
+
+# ── Verify frontend (edge) availability end-to-end ─────────────────────────
+info "Waiting for the edge (frontend) service..."
+
+frontend_ok() {
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/healthz" >/dev/null 2>&1 || return 1
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/" 2>/dev/null | grep -q 'id="root"' || return 1
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/api/v1/health/ready" >/dev/null 2>&1 || return 1
+  return 0
+}
+
+EDGE_READY=false
+EDGE_WAITED=0
+EDGE_MAX_WAIT=90
+while [[ $EDGE_WAITED -lt $EDGE_MAX_WAIT ]]; do
+  EDGE_CID=$(compose ps -aq edge 2>/dev/null | head -n 1 || true)
+  if [[ -n "$EDGE_CID" ]]; then
+    EDGE_STATE=$(docker inspect -f '{{.State.Status}}' "$EDGE_CID" 2>/dev/null || true)
+    if [[ "$EDGE_STATE" == "exited" || "$EDGE_STATE" == "dead" ]]; then
+      compose_logs edge
+      die "Edge container stopped (state: ${EDGE_STATE})."
+    fi
+  fi
+  if frontend_ok; then
+    EDGE_READY=true
+    break
+  fi
+  sleep 5
+  EDGE_WAITED=$((EDGE_WAITED + 5))
+  printf "."
+done
+echo ""
+
+if [[ "$EDGE_READY" != "true" ]]; then
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/healthz" >/dev/null 2>&1 \
+    || warn "Edge /healthz is not responding on port ${APP_PORT}."
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/" 2>/dev/null | grep -q 'id="root"' \
+    || warn "Frontend index was not served — the edge image build may have failed."
+  curl -sf --max-time 5 "http://localhost:${APP_PORT}/api/v1/health/ready" >/dev/null 2>&1 \
+    || warn "API readiness through the edge proxy failed."
+  compose_logs edge api
+  die "Frontend/API verification failed on port ${APP_PORT}."
+fi
+ok "Frontend and API are available through the edge proxy"
+
+# ── Seed challenge data (via the api service, no create_all) ──────────────
 info "Seeding challenge data..."
 
-# Run the seed command inside the API container
-API_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q 2>/dev/null | head -1 || echo "")
-if [[ -n "$API_CONTAINER" ]]; then
-  SEED_OUTPUT=$(docker exec "$API_CONTAINER" python3 -c "
-from app.database import SessionLocal, engine, Base
-from app import seed
-Base.metadata.create_all(bind=engine)
+if ! SEED_OUTPUT=$(compose exec -T api python3 -m app.seed 2>&1); then
+  compose_logs api
+  die "Seeding failed: ${SEED_OUTPUT}"
+fi
+ok "Challenge data seeded"
+
+# Verify seed data is actually present
+if ! PUBLISHABLE=$(compose exec -T api python3 -c 'from app.database import SessionLocal
+from app.models import ChallengeRevision
 db = SessionLocal()
 try:
-    result = seed.seed(db)
-    print(result)
-except Exception as e:
-    print(f'Seed error: {e}')
+    print(db.query(ChallengeRevision).filter(ChallengeRevision.published == True).count())
 finally:
-    db.close()
-" 2>&1) || true
-  if echo "$SEED_OUTPUT" | grep -qi "error"; then
-    warn "Seed output: ${SEED_OUTPUT}"
-  else
-    ok "Challenge data seeded"
-  fi
-else
-  warn "Could not find API container for seeding. Run manually after startup."
+    db.close()' 2>&1); then
+  die "Seed verification query failed: ${PUBLISHABLE}"
 fi
+PUBLISHABLE=$(printf '%s' "$PUBLISHABLE" | tr -cd '0-9')
+if [[ -z "$PUBLISHABLE" || "$PUBLISHABLE" -le 0 ]]; then
+  die "Seed verification failed: no published challenges found in the database."
+fi
+ok "Seed verification passed: ${PUBLISHABLE} published challenge(s) in the database"
 
 # ── Create admin user ───────────────────────────────────────────────────────
 echo ""
@@ -292,19 +452,45 @@ info "  Initial System Administrator Setup"
 info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
+if ! EXISTING_ADMINS=$(compose exec -T api python3 -m app.count_admins 2>&1); then
+  die "Could not query existing administrators: ${EXISTING_ADMINS}"
+fi
+EXISTING_ADMINS=$(printf '%s' "$EXISTING_ADMINS" | tr -cd '0-9')
+
 ADMIN_CREATED=false
-while [[ "$ADMIN_CREATED" == "false" ]]; do
-  read -rp "Admin username [admin]: " ADMIN_USER
+CREATE_ADMIN=true
+if [[ -n "$EXISTING_ADMINS" && "$EXISTING_ADMINS" -gt 0 ]]; then
+  info "Found ${EXISTING_ADMINS} existing system administrator account(s) — preserved."
+  if ! read -rp "Create an additional system administrator? [y/N]: " ADDITIONAL; then
+    echo ""
+    ADDITIONAL=""
+  fi
+  if [[ ! "${ADDITIONAL:-}" =~ ^[Yy] ]]; then
+    CREATE_ADMIN=false
+    ok "Keeping existing administrator account(s)"
+  fi
+fi
+
+while [[ "$CREATE_ADMIN" == "true" && "$ADMIN_CREATED" == "false" ]]; do
+  if ! read -rp "Admin username [admin]: " ADMIN_USER; then
+    die "Input closed before administrator credentials were provided."
+  fi
   ADMIN_USER="${ADMIN_USER:-admin}"
 
-  read -rsp "Admin password: " ADMIN_PASS
+  if ! read -rsp "Admin password: " ADMIN_PASS; then
+    echo ""
+    die "Input closed before administrator credentials were provided."
+  fi
   echo ""
   if [[ -z "$ADMIN_PASS" ]]; then
     warn "Password cannot be empty."
     continue
   fi
 
-  read -rsp "Confirm password: " ADMIN_PASS_CONFIRM
+  if ! read -rsp "Confirm password: " ADMIN_PASS_CONFIRM; then
+    echo ""
+    die "Input closed before administrator credentials were provided."
+  fi
   echo ""
   if [[ "$ADMIN_PASS" != "$ADMIN_PASS_CONFIRM" ]]; then
     warn "Passwords do not match. Try again."
@@ -316,39 +502,36 @@ while [[ "$ADMIN_CREATED" == "false" ]]; do
     continue
   fi
 
-  # Create admin via the running API container
-  if [[ -n "$API_CONTAINER" ]]; then
-    CREATE_OUTPUT=$(docker exec "$API_CONTAINER" python3 -c "
-from app.database import SessionLocal, Base
-from app.engine import create_staff_user
-Base.metadata.create_all(bind=__import__('app.database', fromlist=['engine']).engine)
-db = SessionLocal()
-try:
-    user = create_staff_user(db, '${ADMIN_USER}', '${ADMIN_PASS}', 'system_admin')
-    print(f'OK:{user.username}:{user.role.value}')
-except Exception as e:
-    print(f'ERROR:{e}')
-finally:
-    db.close()
-" 2>&1) || true
-
-    if echo "$CREATE_OUTPUT" | grep -q "^OK:"; then
+  # Credentials travel as NUL-separated stdin — never in process arguments,
+  # environment variables, or interpolated Python source. printf is a bash
+  # builtin, so the password never appears in any process command line.
+  if CREATE_OUTPUT=$(printf '%s\0%s' "$ADMIN_USER" "$ADMIN_PASS" | compose exec -T api python3 -m app.create_staff system_admin 2>&1); then
+    if printf '%s' "$CREATE_OUTPUT" | grep -q "^OK:"; then
       ok "System administrator '${ADMIN_USER}' created successfully"
       ADMIN_CREATED=true
     else
-      ERROR_MSG=$(echo "$CREATE_OUTPUT" | grep "ERROR:" | cut -d: -f2- || echo "Unknown error")
-      warn "Failed to create admin: ${ERROR_MSG}"
-      read -rp "Try again? [Y/n]: " RETRY
+      warn "Failed to create admin: ${CREATE_OUTPUT}"
+      if ! read -rp "Try again? [Y/n]: " RETRY; then
+        RETRY="n"
+      fi
       RETRY="${RETRY:-Y}"
-      if [[ "${RETRY^^}" != "Y" ]]; then
-        warn "Skipping admin creation. Create manually later with:"
-        warn "  docker exec \$(docker compose -f ${COMPOSE_FILE} ps -q | head -1) python3 -c \"...\""
+      if [[ ! "${RETRY^^}" =~ ^Y ]]; then
+        warn "Skipping administrator creation. Create one later with:"
+        warn "  read -rsp 'Password: ' P; echo; printf '%s\\0%s' '<user>' \"\$P\" | docker compose -f ${COMPOSE_FILE} exec -T api python3 -m app.create_staff system_admin"
         break
       fi
     fi
   else
-    warn "API container not found. Skipping admin creation."
-    break
+    warn "Failed to create admin: ${CREATE_OUTPUT}"
+    if ! read -rp "Try again? [Y/n]: " RETRY; then
+      RETRY="n"
+    fi
+    RETRY="${RETRY:-Y}"
+    if [[ ! "${RETRY^^}" =~ ^Y ]]; then
+      warn "Skipping administrator creation. Create one later with:"
+      warn "  read -rsp 'Password: ' P; echo; printf '%s\\0%s' '<user>' \"\$P\" | docker compose -f ${COMPOSE_FILE} exec -T api python3 -m app.create_staff system_admin"
+      break
+    fi
   fi
 done
 
@@ -363,6 +546,15 @@ echo "  Admin panel:      http://localhost:${APP_PORT}/admin"
 echo "  Staff portal:     http://localhost:${APP_PORT}/staff"
 echo ""
 
+if [[ "$ADMIN_CREATED" != "true" && "$CREATE_ADMIN" == "true" ]]; then
+  warn "No administrator was created. Create one before using the admin panel:"
+  warn "  read -rsp 'Password: ' P; echo; printf '%s\\0%s' '<user>' \"\$P\" | docker compose -f ${COMPOSE_FILE} exec -T api python3 -m app.create_staff system_admin"
+  echo ""
+elif [[ "$CREATE_ADMIN" == "false" ]]; then
+  info "Existing administrator account(s) preserved."
+  echo ""
+fi
+
 if [[ -n "$HOSTNAME_ARG" ]]; then
   info "LAN URL (other devices): http://${HOSTNAME_ARG}:${APP_PORT}"
   echo ""
@@ -376,10 +568,10 @@ echo ""
 echo "  Quick commands:"
 echo ""
 echo "    View logs:      docker compose -f ${COMPOSE_FILE} logs -f"
-echo "    Stop:           docker compose -f ${COMPOSE_FILE} down"
+echo "    Stop:           docker compose -f ${COMPOSE_FILE} down      (data is preserved)"
 echo "    Restart:        docker compose -f ${COMPOSE_FILE} restart"
 echo "    Backup DB:      ./scripts/backup.sh"
-echo "    Create staff:   docker exec \$(docker compose -f ${COMPOSE_FILE} ps -q | head -1) python3 /app/scripts/create_staff.py <user> <pass> <role>"
+echo "    Create staff:   see INSTALL.md → Staff Management"
 echo ""
 echo "  See INSTALL.md for full documentation."
 echo ""

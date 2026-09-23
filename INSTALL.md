@@ -39,16 +39,22 @@ git clone https://github.com/mitayag/psmtouchctf.git  # prompts for credentials
 sudo bash install.sh
 ```
 
+The frontend and API images are built inside Docker — Node.js does **not** need to be installed on the VM.
+
 The installer will:
 
 1. Validate your system (OS, memory, disk space)
 2. Install Docker Engine and Compose plugin (if missing)
-3. Generate secure secrets (app key + database password)
-4. Ask for admin credentials
-5. Build and start the Docker stack
-6. Wait for health checks
-7. Seed challenge data
-8. Print the application URL
+3. Generate secure secrets (app key + database password), preserving any existing ones
+4. Build the API and frontend images **inside Docker** (Node.js is not required on the host)
+5. Start the Docker stack and run Alembic migrations via the `migrate` service
+6. Wait until the **api** service reports healthy and `/api/v1/health/ready` responds
+7. Verify the frontend is served through the edge proxy
+8. Seed challenge data through the `api` service (no `create_all`)
+9. Ask for admin credentials and create the administrator securely
+10. Print the application URL
+
+Re-running the installer is safe: existing `.env`, `secrets/`, database volumes, and accounts are preserved.
 
 **Options:**
 
@@ -155,27 +161,22 @@ docker compose -f docker-compose.prod.yml logs --tail=100 api
 ### Database Operations
 
 ```bash
-# Run migrations (usually automatic during install)
-docker exec $(docker compose -f docker-compose.prod.yml ps -q | head -1) \
-  alembic upgrade head
+# Run migrations (usually automatic during install) — via the migrate service
+docker compose -f docker-compose.prod.yml run --rm migrate
 
-# Seed/re-seed challenge data
-docker exec $(docker compose -f docker-compose.prod.yml ps -q | head -1) python3 -c "
-from app.database import SessionLocal, Base
-from app import seed
-Base.metadata.create_all(bind=__import__('app.database', fromlist=['engine']).engine)
-db = SessionLocal()
-seed.seed(db)
-db.close()
-"
+# Seed/re-seed challenge data (idempotent; schema comes from migrations only)
+docker compose -f docker-compose.prod.yml exec -T api python3 -m app.seed
 ```
 
 ### Staff Management
 
+Staff credentials are passed on **stdin** (NUL-separated) so the password never appears in process arguments or Python source:
+
 ```bash
 # Create a new staff user
-docker exec $(docker compose -f docker-compose.prod.yml ps -q | head -1) \
-  python3 /app/scripts/create_staff.py <username> <password> <role>
+read -rsp "Password: " P; echo
+printf '%s\0%s' "<username>" "$P" | docker compose -f docker-compose.prod.yml exec -T api python3 -m app.create_staff staff
+unset P
 
 # Roles: staff, admin, system_admin
 ```
@@ -223,12 +224,11 @@ This skips PostgreSQL and uses a file-based SQLite database. The compose file is
 # 2. Pull latest changes
 git pull
 
-# 3. Rebuild and restart
+# 3. Rebuild and restart (frontend is rebuilt inside the edge image)
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 4. Run any new migrations
-docker exec $(docker compose -f docker-compose.prod.yml ps -q | head -1) \
-  alembic upgrade head
+docker compose -f docker-compose.prod.yml run --rm migrate
 ```
 
 **Note:** Updates preserve staff accounts, prizes, and configuration. Player data is not affected.
@@ -240,8 +240,8 @@ docker exec $(docker compose -f docker-compose.prod.yml ps -q | head -1) \
 | `503 Service Unavailable` | API container not healthy | `docker compose -f docker-compose.prod.yml logs api` |
 | `Connection refused` | Container not started | `docker compose -f docker-compose.prod.yml up -d` |
 | Port already in use | Another service on port 80 | Change port: `--port 8080` |
-| `Event not found` | Database not seeded | Run seed command above |
-| Admin login fails | Wrong credentials | Create new admin via `create_staff.py` |
+| `Event not found` | Database not seeded | Run `docker compose -f docker-compose.prod.yml exec -T api python3 -m app.seed` |
+| Admin login fails | Wrong credentials | Create a new admin (see Staff Management above) |
 | Slow first load | Uvicorn worker startup | Normal on first request; subsequent requests are fast |
 | Frontend shows API error | API unreachable from edge | Check `docker compose -f docker-compose.prod.yml ps` — all services should be healthy |
 

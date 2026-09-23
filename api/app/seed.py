@@ -189,11 +189,22 @@ def seed(db: Session) -> dict[str, Any]:
 
 
 def seed_command():
-    from app.database import Base, SessionLocal, engine
-    Base.metadata.create_all(bind=engine)
+    """Seed application data.
+
+    The database schema is owned exclusively by Alembic migrations
+    (the ``migrate`` compose service runs ``alembic upgrade head``);
+    this command never creates tables.
+    """
+    from app import engine as game_engine
+    from app.database import SessionLocal
+
     db = SessionLocal()
     try:
         result = seed(db)
+        event = game_engine.open_event(db)
+        prizes = game_engine.seed_prizes(db, event.id)
+        result["event_open"] = event.state.value
+        result["prizes_seeded"] = prizes
         print(json.dumps(result, indent=2))
     finally:
         db.close()

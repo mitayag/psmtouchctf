@@ -5,7 +5,7 @@ import './Modal.css';
 
 interface ModalProps {
   open: boolean;
-  title: string;
+  title?: string;
   children: ReactNode;
   onClose: () => void;
   actions?: ReactNode;
@@ -50,13 +50,15 @@ export function Modal({ open, title, children, onClose, actions }: ModalProps) {
         className="ctf-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={title ? 'modal-title' : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="modal-title" className="ctf-modal-title">
-          {title}
-        </h2>
+        {title && (
+          <h2 id="modal-title" className="ctf-modal-title">
+            {title}
+          </h2>
+        )}
         <div className="ctf-modal-body">{children}</div>
         {actions && <div className="ctf-modal-actions">{actions}</div>}
         {!actions && (

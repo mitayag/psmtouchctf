@@ -44,23 +44,18 @@ openssl rand -hex 16 > secrets/db_password.txt
 cp .env.prod.example .env.prod
 # Edit .env.prod — set DB_PASSWORD to match secrets/db_password.txt
 
-# 4. Build frontend
-cd ui && npm ci && npm run build && cd ..
-
-# 5. Start production stack
+# 4. Start production stack (builds API + frontend images inside Docker;
+#    Node.js is not required on the host)
 docker compose -f docker-compose.prod.yml up -d --build
 
-# 6. Create admin user
-docker compose -f docker-compose.prod.yml exec api \
-  python3 -c "
-from app.database import SessionLocal, Base, engine
-from app.engine import create_staff_user
-Base.metadata.create_all(bind=engine)
-db = SessionLocal()
-u = create_staff_user(db, 'admin', 'CHANGE_ME', 'system_admin')
-print(f'Admin created: {u.username} (role: {u.role.value})')
-db.close()
-"
+# 5. Run migrations (also runs automatically as the migrate service)
+docker compose -f docker-compose.prod.yml run --rm migrate
+
+# 6. Create admin user — credentials are passed via stdin, never argv/source
+read -rsp "Admin password: " ADMIN_PASS; echo
+printf '%s\0%s' "admin" "$ADMIN_PASS" \
+  | docker compose -f docker-compose.prod.yml exec -T api python3 -m app.create_staff system_admin
+unset ADMIN_PASS
 
 # 7. Verify health
 curl http://localhost/api/v1/health/ready
@@ -209,7 +204,7 @@ ls -la backups/
 Migrations run automatically on startup via the `migrate` service. To run manually:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f docker-compose.prod.yml run --rm migrate
 ```
 
 ### Restart
@@ -226,8 +221,8 @@ docker compose -f docker-compose.prod.yml restart api
 
 ```bash
 git pull
-cd ui && npm ci && npm run build && cd ..
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build   # rebuilds frontend in-image
+docker compose -f docker-compose.prod.yml run --rm migrate
 ```
 
 ## Auto-Recovery
@@ -316,7 +311,7 @@ Only port 80 (or 443 with TLS) is exposed. The database and API are internal to 
 | `503 Service Unavailable` | Check `docker compose ps` — API may still be starting. Wait 30s. |
 | `Connection refused` | Ensure port 80 is open: `sudo ufw allow 80/tcp` |
 | `Database not ready` | Check PostgreSQL logs: `docker compose logs db` |
-| `Admin login fails` | Verify admin user exists: `docker compose exec api python3 scripts/create_staff.py ...` |
+| `Admin login fails` | Verify admin user exists: `docker compose exec -T api python3 -m app.count_admins` — create with the stdin pattern in Quick Start |
 | Slow first request | Normal — uvicorn worker startup. Subsequent requests are fast. |
 | Container keeps restarting | Check logs: `docker compose logs <service>` |
 

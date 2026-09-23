@@ -72,10 +72,6 @@ export function PrizeWheelScreen() {
     setShowResult(false);
   }, []);
 
-  const handleDone = useCallback(() => {
-    navigate('/');
-  }, [navigate]);
-
   const handleTick = useCallback(() => {
     audio.play('wheelTick');
   }, []);

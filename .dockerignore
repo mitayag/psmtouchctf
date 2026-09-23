@@ -1,9 +1,11 @@
 node_modules
+ui/node_modules
 __pycache__
 *.pyc
 .pytest_cache
 .venv
 dist
+ui/dist
 .env
 .env.prod
 .env.local

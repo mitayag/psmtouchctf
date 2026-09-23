@@ -12,6 +12,8 @@ import type {
   GameSession,
   LeaderboardAdminEntry,
   LeaderboardEntry,
+  PlayerDataSummary,
+  DeletePlayerDataResult,
   Prize,
   PrizeInventoryItem,
   PrizeListItem,
@@ -385,6 +387,7 @@ export const api = {
       available: p.available ?? 0,
       active: p.active,
       color: p.color || '#20E3FF',
+      image_url: p.image_url ?? null,
     }));
   },
 
@@ -569,18 +572,6 @@ export const api = {
   }, signal?: AbortSignal): Promise<StaffListItem> {
     return apiFetch('/admin/users', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
-    }, signal) as Promise<StaffListItem>;
-  },
-
-  async adminUpdateStaff(token: string, userId: string, data: {
-    display_name?: string;
-    role?: string;
-    active?: boolean;
-  }, signal?: AbortSignal): Promise<StaffListItem> {
-    return apiFetch(`/admin/users/${userId}`, {
-      method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }, signal) as Promise<StaffListItem>;

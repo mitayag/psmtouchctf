@@ -41,3 +41,8 @@
   color: var(--state-error);
   border-color: rgba(255, 115, 140, 0.4);
 }
+
+.status-badge-error {
+  color: var(--state-error);
+  border-color: rgba(255, 115, 140, 0.4);
+}

@@ -10,7 +10,6 @@ import { AnimationToggle } from '../components/AnimationToggle';
 import { api } from '../services/api';
 import type {
   AdminStats,
-  AnalyticsData,
   AuditLogEntry,
   ChallengeListItem,
   ClaimLookup,
@@ -866,82 +865,6 @@ function LeaderboardTab({ token }: { token: string }) {
   );
 }
 
-/* ── Analytics ───────────────────────────────────────────────────── */
-
-function AnalyticsTab({ token }: { token: string }) {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.adminGetAnalytics(token).then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [token]);
-
-  const handleExport = async () => {
-    const blob = await api.adminExportAnalytics(token);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'analytics-export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  if (loading) return <div className="admin-loading">Loading…</div>;
-  if (!data) return <div className="admin-error">Failed to load analytics.</div>;
-
-  return (
-    <div className="admin-content">
-      <div className="admin-stats-row">
-        <StatCard label="Rounds started" value={data.rounds_started} />
-        <StatCard label="Completed" value={data.rounds_completed} />
-        <StatCard label="Completion rate" value={Math.round(data.completion_rate * 100)} />
-        <StatCard label="Avg score" value={Math.round(data.avg_score)} />
-      </div>
-      <div className="admin-stats-row">
-        <StatCard label="Total players" value={data.total_players} />
-        <StatCard label="Expired" value={data.rounds_expired} />
-        <StatCard label="Abandoned" value={data.rounds_abandoned} />
-        <StatCard label="Qualification rate" value={Math.round(data.qualification_rate * 100)} />
-      </div>
-      <Card className="admin-content-card" padding="md">
-        <div className="admin-section-header">
-          <span>📊</span>
-          <h2>Challenge performance</h2>
-          <button className="admin-btn primary" onClick={handleExport}>Export CSV</button>
-        </div>
-        <table className="admin-table">
-          <thead><tr><th>TYPE</th><th>PRESENTED</th><th>SOLVED</th><th>HINT USED</th><th>SKIPPED</th><th>AVG ATTEMPTS</th></tr></thead>
-          <tbody>
-            {data.challenge_stats.map(c => (
-              <tr key={c.type}>
-                <td><span className={`admin-challenge-type type-${c.type}`}>{c.type}</span></td>
-                <td>{c.presented}</td>
-                <td>{c.solved}</td>
-                <td>{c.hint_used}</td>
-                <td>{c.skipped}</td>
-                <td>{c.avg_attempts.toFixed(1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-      {data.prize_distribution.length > 0 && (
-        <Card className="admin-content-card" padding="md">
-          <div className="admin-section-header"><span>🎁</span><h2>Prize distribution</h2></div>
-          <table className="admin-table">
-            <thead><tr><th>PRIZE</th><th>AWARDED</th><th>REDEEMED</th><th>VOIDED</th><th>PENDING</th></tr></thead>
-            <tbody>
-              {data.prize_distribution.map(p => (
-                <tr key={p.prize_name}><td>{p.prize_name}</td><td>{p.awarded}</td><td>{p.redeemed}</td><td>{p.voided}</td><td>{p.pending}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
-    </div>
-  );
-}
-
 /* ── Audit ───────────────────────────────────────────────────────── */
 
 function AuditTab({ token }: { token: string }) {
@@ -994,7 +917,6 @@ function StaffTab({ token }: { token: string }) {
   const [deleteModalUser, setDeleteModalUser] = useState<StaffListItem | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSaving, setDeleteSaving] = useState(false);
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -1115,7 +1037,6 @@ function StaffTab({ token }: { token: string }) {
     }
   };
 
-  const hasSystemAdmin = staff.some(s => s.role === 'system_admin' && s.active);
 
   if (loading) return <div className="admin-loading">Loading…</div>;
 

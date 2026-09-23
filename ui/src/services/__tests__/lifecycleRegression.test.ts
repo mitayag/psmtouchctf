@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiModule from '../api';
 import { generateAlias } from '../fixtureData';
 import { selectChallengesForRound, resetPoolProgress } from '../challengeSelection';
-import type { Challenge } from '../../types';
 
 // Minimal localStorage mock
 const store: Record<string, string> = {};
@@ -269,7 +268,7 @@ describe('challenge next-button logic', () => {
   });
 
   it('shows Next for non-final challenges regardless of score', () => {
-    const pos = 1;
+    const pos: number = 1;
     const isLastChallenge = pos === 3;
     expect(isLastChallenge).toBe(false);
   });
@@ -349,10 +348,9 @@ describe('timer independence (frontend)', () => {
     // Simulates the fix: when sessionId changes, session/loaded/error are reset.
     let session: any = { id: 'session-a', loaded: true };
     let loaded = true;
-    const error = null;
 
-    const sessionIdA = 'session-a';
-    const sessionIdB = 'session-b';
+    const sessionIdA: string = 'session-a';
+    const sessionIdB: string = 'session-b';
 
     // On sessionId change (simulating the useEffect reset)
     if (sessionIdB !== sessionIdA) {
