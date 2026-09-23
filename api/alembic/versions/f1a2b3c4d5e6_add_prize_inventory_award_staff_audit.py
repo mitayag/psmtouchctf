@@ -14,10 +14,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Enum types are created automatically by op.create_table for the
+    # columns below. Explicit .create(checkfirst=True) here would be
+    # re-issued unconditionally by create_table on PostgreSQL and fail
+    # with DuplicateObject.
     award_state_enum = sa.Enum("awarded", "redeemed", "expired", "voided", name="awardstate")
     staff_role_enum = sa.Enum("staff", "admin", name="staffrole")
-    award_state_enum.create(op.get_bind(), checkfirst=True)
-    staff_role_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "prizes",
@@ -29,7 +31,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text, nullable=False, server_default=""),
         sa.Column("image_url", sa.String(500), nullable=True),
         sa.Column("weight", sa.Integer, nullable=False, server_default="1"),
-        sa.Column("active", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("display_order", sa.Integer, nullable=False, server_default="0"),
         sa.Column("color", sa.String(20), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=False), nullable=False, server_default=sa.func.now()),
@@ -53,7 +55,7 @@ def upgrade() -> None:
         sa.Column("username", sa.String(100), unique=True, nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("role", staff_role_enum, nullable=False, server_default="staff"),
-        sa.Column("active", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(timezone=False), nullable=False, server_default=sa.func.now()),
         sa.Column("last_login_at", sa.DateTime(timezone=False), nullable=True),
     )
@@ -73,9 +75,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=False), nullable=False, server_default=sa.func.now()),
         sa.Column("redeemed_at", sa.DateTime(timezone=False), nullable=True),
         sa.Column("redeemed_by", sa.String(36), sa.ForeignKey("staff_users.id"), nullable=True),
+        sa.UniqueConstraint("session_id", name="uq_award_session"),
+        sa.UniqueConstraint("claim_code", name="uq_award_claim_code"),
     )
-    op.create_unique_constraint("uq_award_session", "awards", ["session_id"])
-    op.create_unique_constraint("uq_award_claim_code", "awards", ["claim_code"])
 
     op.create_table(
         "audit_logs",
