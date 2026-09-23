@@ -425,7 +425,7 @@ ok "Frontend and API are available through the edge proxy"
 # ── Seed challenge data (via the api service, no create_all) ──────────────
 info "Seeding challenge data..."
 
-if ! SEED_OUTPUT=$(compose exec -T api python3 -m app.seed 2>&1); then
+if ! SEED_OUTPUT=$(compose exec -T api python3 -m app.seed < /dev/null 2>&1); then
   compose_logs api
   die "Seeding failed: ${SEED_OUTPUT}"
 fi
@@ -438,7 +438,7 @@ db = SessionLocal()
 try:
     print(db.query(ChallengeRevision).filter(ChallengeRevision.published == True).count())
 finally:
-    db.close()' 2>&1); then
+    db.close()' < /dev/null 2>&1); then
   die "Seed verification query failed: ${PUBLISHABLE}"
 fi
 PUBLISHABLE=$(printf '%s' "$PUBLISHABLE" | tr -cd '0-9')
@@ -454,7 +454,7 @@ info "  Initial System Administrator Setup"
 info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-if ! EXISTING_ADMINS=$(compose exec -T api python3 -m app.count_admins 2>&1); then
+if ! EXISTING_ADMINS=$(compose exec -T api python3 -m app.count_admins < /dev/null 2>&1); then
   die "Could not query existing administrators: ${EXISTING_ADMINS}"
 fi
 EXISTING_ADMINS=$(printf '%s' "$EXISTING_ADMINS" | tr -cd '0-9')
@@ -507,6 +507,8 @@ while [[ "$CREATE_ADMIN" == "true" && "$ADMIN_CREATED" == "false" ]]; do
   # Credentials travel as NUL-separated stdin — never in process arguments,
   # environment variables, or interpolated Python source. printf is a bash
   # builtin, so the password never appears in any process command line.
+  # This is the only compose exec that intentionally keeps stdin attached;
+  # every other compose exec redirects /dev/null so it cannot drain it.
   if CREATE_OUTPUT=$(printf '%s\0%s' "$ADMIN_USER" "$ADMIN_PASS" | compose exec -T api python3 -m app.create_staff system_admin 2>&1); then
     if printf '%s' "$CREATE_OUTPUT" | grep -q "^OK:"; then
       ok "System administrator '${ADMIN_USER}' created successfully"
