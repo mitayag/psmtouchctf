@@ -6,6 +6,8 @@
 import { chromium } from 'playwright';
 
 const BASE = process.argv[2] || 'http://localhost:8080';
+const USER = process.env.STAFF_USERNAME || 'admin';
+const PASS = process.env.STAFF_PASSWORD || 'AdminPass123!';
 const results = [];
 
 function record(name, pass, detail) {
@@ -38,7 +40,7 @@ try {
   record('staff empty submit: no network POST', posts === 0, `posts=${posts}`);
 
   // ── Wrong password: server 401 shown readably ──
-  await page.fill('input[type="text"]', 'admin');
+  await page.fill('input[type="text"]', USER);
   await page.fill('input[type="password"]', 'definitely-wrong-password');
   await loginBtn.click();
   await page.waitForTimeout(800);
@@ -50,7 +52,7 @@ try {
   );
 
   // ── Correct password: login succeeds ──
-  await page.fill('input[type="password"]', 'AdminPass123!');
+  await page.fill('input[type="password"]', PASS);
   await loginBtn.click();
   await page.waitForTimeout(1000);
   const bodyText = await page.locator('body').textContent();
