@@ -13,7 +13,13 @@ from sqlalchemy.orm import Session
 
 from app import engine, models, schemas, seed
 from app.config import get_settings
-from app.database import SessionLocal, engine as db_engine, ensure_columns, get_db
+from app.database import (
+    SessionLocal,
+    engine as db_engine,
+    ensure_columns,
+    ensure_enum_values,
+    get_db,
+)
 
 logger = logging.getLogger("touchctf")
 
@@ -21,6 +27,7 @@ logger = logging.getLogger("touchctf")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_columns(db_engine)
+    ensure_enum_values(db_engine)
     db = SessionLocal()
     try:
         seed.seed(db)

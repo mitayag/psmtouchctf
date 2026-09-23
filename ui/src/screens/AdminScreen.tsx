@@ -80,6 +80,10 @@ export function AdminScreen() {
 
   const handleLogin = async () => {
     setLoginError(null);
+    if (!username.trim() || !password) {
+      setLoginError('Enter your username and password.');
+      return;
+    }
     setLoginLoading(true);
     try {
       const u = await api.adminLogin(username, password);

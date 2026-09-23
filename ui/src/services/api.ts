@@ -53,6 +53,71 @@ function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortS
   return ctrl.signal;
 }
 
+/** Cap so a wall of validation errors never floods the login/start screens. */
+const MAX_ERROR_MESSAGE = 240;
+
+function capMessage(message: string): string {
+  const trimmed = message.trim();
+  if (trimmed.length <= MAX_ERROR_MESSAGE) return trimmed;
+  return `${trimmed.slice(0, MAX_ERROR_MESSAGE - 1)}…`;
+}
+
+function formatValidationItems(items: unknown[]): string | null {
+  const parts: string[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const record = item as Record<string, unknown>;
+    // Only msg/loc — never `input`, which can contain submitted credentials.
+    const msg =
+      (typeof record.msg === 'string' && record.msg) ||
+      (typeof record.message === 'string' && record.message) ||
+      '';
+    if (!msg) continue;
+    const loc = Array.isArray(record.loc)
+      ? record.loc
+          .filter((seg) => seg !== 'body' && seg !== 'query' && seg !== 'path')
+          .map(String)
+          .join('.')
+      : '';
+    parts.push(loc ? `${loc}: ${msg}` : msg);
+  }
+  return parts.length > 0 ? capMessage(parts.join('; ')) : null;
+}
+
+/**
+ * Turn a non-OK response body into a readable message. FastAPI's `detail` can be
+ * a string, a 422 validation-item array, or a structured object — coercing any of
+ * those with `new Error(detail)` renders "[object Object]". Never echoes raw
+ * payloads (nginx HTML, submitted fields); falls back to the status code.
+ */
+export function extractErrorMessage(status: number, body: unknown): string {
+  const fallback = `Request failed (${status})`;
+  if (Array.isArray(body)) {
+    return formatValidationItems(body) ?? fallback;
+  }
+  if (body && typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    const detail = record.detail;
+    if (typeof detail === 'string' && detail.trim()) return capMessage(detail);
+    if (Array.isArray(detail)) {
+      const formatted = formatValidationItems(detail);
+      if (formatted) return formatted;
+    } else if (detail && typeof detail === 'object') {
+      const nested = detail as Record<string, unknown>;
+      for (const key of ['message', 'msg', 'title', 'error']) {
+        const value = nested[key];
+        if (typeof value === 'string' && value.trim()) return capMessage(value);
+      }
+    }
+    for (const key of ['message', 'error'] as const) {
+      const value = record[key];
+      if (typeof value === 'string' && value.trim()) return capMessage(value);
+    }
+    return fallback;
+  }
+  return fallback;
+}
+
 async function apiFetch(path: string, options: RequestInit = {}, signal?: AbortSignal): Promise<unknown> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -74,15 +139,15 @@ async function apiFetch(path: string, options: RequestInit = {}, signal?: AbortS
     throw e;
   }
   if (!res.ok) {
-    let detail = `Request failed (${res.status})`;
+    let body: unknown;
     try {
-      const body = await res.json();
-      detail = body.detail || detail;
+      body = await res.json();
     } catch {
-      // ignore
+      // Non-JSON (nginx HTML page, empty body) — extractErrorMessage falls back to status.
+      body = undefined;
     }
-    const err = new Error(detail);
-    (err as Error & { statusCode?: number }).statusCode = res.status;
+    const err = new Error(extractErrorMessage(res.status, body)) as Error & { statusCode?: number };
+    err.statusCode = res.status;
     throw err;
   }
   if (res.status === 204) return null;

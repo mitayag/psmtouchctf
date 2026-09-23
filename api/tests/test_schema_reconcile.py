@@ -4,7 +4,13 @@ The deployed volume's game_sessions table predated prepared_at (and
 challenge_pools predated recently_assigned), so create_all() alone left the
 model ahead of the DB and POST /api/v1/sessions failed with
 sqlite3.OperationalError: no such column: game_sessions.prepared_at (HTTP 500).
+
+A second legacy gap: the PostgreSQL gamesessionstate enum created by the
+initial migration lacked 'prepared' (d4e5f6a7b8c9 added only the column), so
+queries binding that state failed with InvalidTextRepresentation (HTTP 500).
 """
+
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
@@ -12,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import engine as game_engine
 from app import models, seed
-from app.database import Base, ensure_columns
+from app.database import Base, ensure_columns, ensure_enum_values, required_enum_values
 
 
 def _sqlite_supports_drop_column(engine) -> bool:
@@ -115,3 +121,49 @@ def test_force_new_query_and_session_create_work_after_reconcile(legacy_engine):
         assert session.prepared_at is None
     finally:
         db.close()
+
+
+def test_required_enum_values_include_prepared_state():
+    required = required_enum_values()
+    assert "gamesessionstate" in required
+    assert "prepared" in required["gamesessionstate"]
+    assert required["gamesessionstate"] >= {
+        "ready",
+        "prepared",
+        "active",
+        "completed",
+        "expired",
+        "abandoned",
+    }
+
+
+def test_ensure_enum_values_is_noop_on_sqlite(tmp_path):
+    """SQLite stores enums as VARCHAR; reconcile must not issue DDL there."""
+    engine = create_engine(f"sqlite:///{tmp_path}/noop.db")
+    try:
+        Base.metadata.create_all(bind=engine)
+        ensure_enum_values(engine)
+        ensure_enum_values(engine)
+    finally:
+        engine.dispose()
+
+
+def test_prepared_enum_migration_is_head_and_revises_prior_head():
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    api_root = Path(__file__).resolve().parents[1]
+    config = Config(str(api_root / "alembic.ini"))
+    script = ScriptDirectory.from_config(config)
+
+    assert script.get_current_head() == "h3c4d5e6f7a8"
+    revision = script.get_revision("h3c4d5e6f7a8")
+    assert revision.down_revision == "g2b3c4d5e6f7"
+
+
+def test_prepared_enum_migration_adds_missing_value():
+    api_root = Path(__file__).resolve().parents[1]
+    migration = (
+        api_root / "alembic" / "versions" / "h3c4d5e6f7a8_add_prepared_to_gamesessionstate.py"
+    ).read_text()
+    assert "ALTER TYPE gamesessionstate ADD VALUE IF NOT EXISTS 'prepared'" in migration

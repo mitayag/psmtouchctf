@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy import Enum as SAEnum, create_engine, event, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import get_database_url, get_settings
@@ -72,3 +72,55 @@ def ensure_columns(bind) -> None:
                         table.name,
                         col.name,
                     )
+
+
+def required_enum_values() -> dict[str, set[str]]:
+    """Map each native enum type name to the values the models expect."""
+    import app.models  # noqa: F401 — populate Base.metadata before scanning
+
+    required: dict[str, set[str]] = {}
+    for table in Base.metadata.sorted_tables:
+        for col in table.columns:
+            col_type = col.type
+            if isinstance(col_type, SAEnum):
+                required.setdefault(col_type.name, set()).update(
+                    str(v) for v in col_type.enums
+                )
+    return required
+
+
+def ensure_enum_values(bind) -> None:
+    """Add missing native enum values (PostgreSQL) so model states stay writable.
+
+    create_all() never alters existing types: the gamesessionstate enum created
+    by migration 2a92775f145c lacked 'prepared', so any query binding that state
+    raised InvalidTextRepresentation (HTTP 500) even with the column present.
+    Only additive ALTER TYPE ... ADD VALUE is issued; values are never removed.
+    """
+    if bind.dialect.name != "postgresql":
+        return
+    required = required_enum_values()
+    if not required:
+        return
+    with bind.begin() as conn:
+        for type_name in sorted(required):
+            rows = conn.execute(
+                text(
+                    "SELECT e.enumlabel FROM pg_type t "
+                    "JOIN pg_enum e ON e.enumtypid = t.oid "
+                    "WHERE t.typname = :name"
+                ),
+                {"name": type_name},
+            ).fetchall()
+            if not rows:
+                continue  # type not created yet; create_all runs first
+            existing = {row[0] for row in rows}
+            for value in sorted(required[type_name] - existing):
+                safe_value = value.replace("'", "''")
+                conn.execute(
+                    text(
+                        f"ALTER TYPE \"{type_name}\" "
+                        f"ADD VALUE IF NOT EXISTS '{safe_value}'"
+                    )
+                )
+                logger.info("Schema reconcile: added enum value %s.%s", type_name, value)
